@@ -27,7 +27,7 @@ CREATE TABLE Customers (
 );
 
 -- Create Bookings Table
-CREATE TABLE Bookings (
+CREATE TABLE Booking (
     booking_id NUMBER PRIMARY KEY,
     customer_id NUMBER REFERENCES Customers(customer_id),
     room_id NUMBER REFERENCES Rooms(room_id),
@@ -40,7 +40,7 @@ CREATE TABLE Bookings (
 -- Add Feedback Table for Customer Reviews
 CREATE TABLE Feedback (
     feedback_id NUMBER PRIMARY KEY,
-    booking_id NUMBER REFERENCES Bookings(booking_id),
+    booking_id NUMBER REFERENCES Booking(booking_id),
     rating NUMBER CHECK (rating BETWEEN 1 AND 5),
     comments VARCHAR2(500)
 );
@@ -55,7 +55,7 @@ CREATE OR REPLACE FUNCTION check_room_availability(
 BEGIN
     SELECT COUNT(*)
     INTO v_count
-    FROM Bookings
+    FROM Booking
     WHERE room_id = p_room_id
       AND status = 'Confirmed'
       AND (
@@ -72,7 +72,7 @@ END check_room_availability;
 
 -- Trigger to Prevent Double Bookings
 CREATE OR REPLACE TRIGGER prevent_double_booking
-BEFORE INSERT ON Bookings
+BEFORE INSERT ON Booking
 FOR EACH ROW
 DECLARE
     v_availability CHAR(1);
@@ -90,16 +90,21 @@ SELECT
     h.hotel_name,
     COUNT(b.booking_id) AS total_bookings,
     COUNT(r.room_id) AS total_rooms,
-    ROUND((COUNT(b.booking_id) / COUNT(r.room_id)) * 100, 2) AS occupancy_rate
+    CASE 
+        WHEN COUNT(r.room_id) = 0 THEN 0
+        ELSE (COUNT(b.booking_id) / COUNT(r.room_id)) * 100 
+    END AS occupancy_rate
 FROM 
     Hotels h
 LEFT JOIN 
     Rooms r ON h.hotel_id = r.hotel_id
 LEFT JOIN 
-    Bookings b ON r.room_id = b.room_id AND b.status = 'Confirmed'
+    Booking b ON r.room_id = b.room_id AND b.status = 'Confirmed'
 GROUP BY 
     h.hotel_name;
 
+
+    
 -- Insert Sample Records in the Tables to Show the Output
 
 -- Insert Sample Hotels
@@ -183,11 +188,10 @@ INSERT INTO Customers (customer_id, first_name, last_name, email, phone)
 VALUES (7, 'Daniel', 'Martinez', 'daniel.martinez@example.com', '789')
 
 -- Test the function and triggers with sample data
-BEGIN
-    INSERT INTO Bookings (booking_id, customer_id, room_id, check_in_date, check_out_date, status) 
+
+INSERT INTO Booking (booking_id, customer_id, room_id, check_in_date, check_out_date, status) 
 VALUES (1, 1, 1, TO_DATE('2025-01-10', 'YYYY-MM-DD'), TO_DATE('2025-01-15', 'YYYY-MM-DD'), 'Confirmed');
-END;
-/
 
 -- Check room availability
 SELECT check_room_availability(1, TO_DATE('2025-01-12', 'YYYY-MM-DD'), TO_DATE('2025-01-16', 'YYYY-MM-DD')) FROM DUAL;
+
